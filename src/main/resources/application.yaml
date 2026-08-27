@@ -1,3 +1,16 @@
+server:
+  port: 8083
+
 spring:
   application:
     name: credential-service
+  config:
+    import: "optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}"
+
+eureka:
+  instance:
+    prefer-ip-address: true
+  client:
+    service-url:
+      defaultZone: ${EUREKA_DEFAULT_ZONE:http://localhost:9001/eureka}
+
