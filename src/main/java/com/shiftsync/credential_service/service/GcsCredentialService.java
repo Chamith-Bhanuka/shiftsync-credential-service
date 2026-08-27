@@ -101,18 +101,32 @@ public class GcsCredentialService {
         return mapToDto(updatedBlob);
     }
 
+    public org.springframework.http.ResponseEntity<byte[]> downloadDocument(String objectPath) {
+        BlobId blobId = BlobId.of(bucketName, objectPath);
+        Blob blob = storage.get(blobId);
+        if (blob == null) {
+            return org.springframework.http.ResponseEntity.notFound().build();
+        }
+
+        byte[] content = blob.getContent();
+        String contentType = blob.getContentType() != null ? blob.getContentType() : "application/octet-stream";
+
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setContentType(org.springframework.http.MediaType.parseMediaType(contentType));
+        headers.setContentDisposition(org.springframework.http.ContentDisposition.inline().filename(blob.getName()).build());
+        headers.setContentLength(content.length);
+        headers.setCacheControl("max-age=3600");
+
+        return new org.springframework.http.ResponseEntity<>(content, headers, org.springframework.http.HttpStatus.OK);
+    }
+
     private CredentialDocumentDto mapToDto(Blob blob) {
         Map<String, String> meta = blob.getMetadata();
-        String signedUrl;
+        String viewUrl;
         try {
-            URL url = storage.signUrl(
-                    BlobInfo.newBuilder(blob.getBlobId()).build(),
-                    15, TimeUnit.MINUTES,
-                    Storage.SignUrlOption.withV4Signature()
-            );
-            signedUrl = url.toString();
+            viewUrl = "/api/credentials/credentials/view?objectPath=" + java.net.URLEncoder.encode(blob.getName(), java.nio.charset.StandardCharsets.UTF_8);
         } catch (Exception e) {
-            signedUrl = String.format("https://storage.googleapis.com/%s/%s", blob.getBucket(), blob.getName());
+            viewUrl = "/api/credentials/credentials/view?objectPath=" + blob.getName();
         }
 
         return CredentialDocumentDto.builder()
@@ -125,7 +139,7 @@ public class GcsCredentialService {
                 .reviewStatus(meta != null ? meta.getOrDefault("reviewStatus", "PENDING") : "PENDING")
                 .reviewComment(meta != null ? meta.get("reviewComment") : null)
                 .reviewerId(meta != null ? meta.get("reviewerId") : null)
-                .signedUrl(signedUrl)
+                .signedUrl(viewUrl)
                 .uploadedAt(meta != null ? meta.getOrDefault("uploadedAt", blob.getCreateTimeOffsetDateTime().toString()) : "")
                 .build();
     }

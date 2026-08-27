@@ -42,6 +42,11 @@ public class CredentialController {
         return ResponseEntity.ok(credentialService.getPendingReviewDocuments());
     }
 
+    @GetMapping("/view")
+    public ResponseEntity<byte[]> viewDocument(@RequestParam("objectPath") String objectPath) {
+        return credentialService.downloadDocument(objectPath);
+    }
+
     @PutMapping("/review")
     public ResponseEntity<CredentialDocumentDto> reviewDocument(@RequestBody DocumentReviewRequest request) {
         CredentialDocumentDto updated = credentialService.reviewDocument(
